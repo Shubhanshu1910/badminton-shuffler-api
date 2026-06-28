@@ -50,17 +50,15 @@ HistoryUtil.updateOpponentHistory(
   teams.teamB,
 );
 
-        return {
-          courtNumber: index + 1,
+       return {
+  courtNumber: index + 1,
 
-          players: courtPlayers.map(
-            (p) => p.id,
-          ),
+  players: courtPlayers.map((p) => p.id),
 
-          teamA: teams.teamA,
+  teamA: teams.teamA.map((player) => player.id),
 
-          teamB: teams.teamB,
-        };
+  teamB: teams.teamB.map((player) => player.id),
+};
       },
     );
 
@@ -69,8 +67,7 @@ HistoryUtil.updateOpponentHistory(
 
       matches,
 
-      waitingPlayers:
-        waiting.map((p: { id: any; }) => p.id),
+      waitingPlayers: waiting.map((p) => p.id),
     };
   }
 }

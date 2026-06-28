@@ -36,10 +36,15 @@ enum CourtStatus {
 
 enum RoundStatus {
   PENDING
-
   ACTIVE
-
   COMPLETED
+}
+
+enum MatchStatus {
+  PENDING
+  PLAYING
+  COMPLETED
+  CANCELLED
 }
 
 model User {
@@ -64,7 +69,7 @@ model RefreshToken {
   expiresAt DateTime
 
   userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields:[userId], references:[id], onDelete:Cascade)
 
   createdAt DateTime @default(now())
 
@@ -138,9 +143,9 @@ model SessionPlayer {
 
   joinedAt DateTime @default(now())
 
-  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  player Player @relation(fields:[playerId], references:[id], onDelete:Cascade)
 
-  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  session Session @relation(fields:[sessionId], references:[id], onDelete:Cascade)
 
   @@unique([playerId, sessionId])
 }
@@ -170,65 +175,79 @@ model Court {
 }
 
 model Round {
-  id String @id @default(cuid())
+  id          String       @id @default(cuid())
 
-  sessionId String
+  sessionId   String
 
   roundNumber Int
 
-  status RoundStatus @default(PENDING)
+  status      RoundStatus  @default(PENDING)
 
-  startedAt DateTime?
+  createdAt   DateTime     @default(now())
+
+  startedAt   DateTime?
 
   completedAt DateTime?
 
-  createdAt DateTime @default(now())
+  updatedAt   DateTime     @updatedAt
 
-  updatedAt DateTime @updatedAt
+  session      Session @relation(fields:[sessionId], references:[id], onDelete:Cascade)
 
-  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-
-  matches Match[]
+  matches      Match[]
 
   @@unique([sessionId, roundNumber])
+
   @@index([sessionId])
 }
 
 model Match {
+
   id String @id @default(cuid())
 
   roundId String
+
   courtId String
 
-  teamAScore Int?
-  teamBScore Int?
-  winner     Int?
+  status MatchStatus @default(PENDING)
+
+  teamAScore Int @default(0)
+
+  teamBScore Int @default(0)
+
+  winner Int?
 
   startedAt DateTime?
-  endedAt   DateTime?
+
+  endedAt DateTime?
 
   createdAt DateTime @default(now())
+
   updatedAt DateTime @updatedAt
 
-  round Round @relation(fields: [roundId], references: [id], onDelete: Cascade)
-  court Court @relation(fields: [courtId], references: [id], onDelete: Cascade)
+  round Round @relation(fields:[roundId], references:[id], onDelete:Cascade)
+  court Court @relation(fields:[courtId], references:[id], onDelete:Cascade)
 
   players MatchPlayer[]
+
+  @@index([status])
 }
 
 model MatchPlayer {
+
   id String @id @default(cuid())
 
   playerId String
-  matchId  String
 
-  team     Int
+  matchId String
+
+  team Int
+
   position Int
 
   createdAt DateTime @default(now())
 
-  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
-  match  Match  @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  player Player @relation(fields:[playerId], references:[id], onDelete:Cascade)
+  match  Match  @relation(fields:[matchId], references:[id], onDelete:Cascade)
 
   @@unique([matchId, playerId])
 }
@@ -239,8 +258,8 @@ model SessionCourt {
   sessionId String
   courtId   String
 
-  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  court   Court   @relation(fields: [courtId], references: [id], onDelete: Cascade)
+  session Session @relation(fields:[sessionId], references:[id], onDelete:Cascade)
+  court   Court   @relation(fields:[courtId], references:[id], onDelete:Cascade)
 
   assignedAt DateTime @default(now())
 

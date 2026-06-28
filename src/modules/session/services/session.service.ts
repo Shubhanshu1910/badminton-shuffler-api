@@ -15,11 +15,13 @@ import { UpdateSessionDto } from '../dto/update-session.dto';
 import { SessionMapper } from '../mappers/session.mapper';
 import { SessionRepository } from '../repositories/session.repository';
 import { SessionStatus } from '../../../common/enums/session.enum';
+import { RoundService } from '../../round/services/round.service';
 
 @Injectable()
 export class SessionService {
   constructor(
     private readonly repository: SessionRepository,
+    private readonly roundService: RoundService,
   ) {}
 
   async create(dto: CreateSessionDto) {
@@ -124,10 +126,10 @@ export class SessionService {
     );
   }
 
-  const updated =
-    await this.repository.startSession(id);
+  
+  await this.repository.startSession(id);
+  return this.roundService.generate(id);
 
-  return SessionMapper.toResponse(updated);
 }
 async end(id: string) {
   await this.findOne(id);
