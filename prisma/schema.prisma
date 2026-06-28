@@ -1,0 +1,250 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  USER
+}
+
+enum SessionStatus {
+  DRAFT
+  READY
+  ACTIVE
+  PAUSED
+  COMPLETED
+  CANCELLED
+}
+
+enum MatchResult {
+  TEAM_A
+  TEAM_B
+  DRAW
+}
+
+enum CourtStatus {
+  AVAILABLE
+  OCCUPIED
+  MAINTENANCE
+  DISABLED
+}
+
+enum RoundStatus {
+  PENDING
+
+  ACTIVE
+
+  COMPLETED
+}
+
+model User {
+  id           String   @id @default(cuid())
+  fullName     String
+  email        String   @unique
+  passwordHash String
+  role         UserRole @default(USER)
+  isActive     Boolean  @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  refreshTokens RefreshToken[]
+
+  @@index([email])
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  expiresAt DateTime
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model Player {
+  id String @id @default(cuid())
+
+  name       String
+  phone      String?
+  skillLevel Int     @default(3)
+  isActive   Boolean @default(true)
+
+  gamesPlayed Int @default(0)
+  gamesWon    Int @default(0)
+  gamesLost   Int @default(0)
+  gamesWaited Int @default(0)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  sessionPlayers SessionPlayer[]
+  matchPlayers   MatchPlayer[]
+
+  @@index([name])
+  @@index([isActive])
+}
+
+model Session {
+  id String @id @default(cuid())
+
+  title String
+
+  description String?
+
+  status SessionStatus @default(DRAFT)
+
+  totalCourts Int
+
+  maxPlayers Int
+
+  currentRound Int @default(0)
+
+  startedAt DateTime?
+
+  endedAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  updatedAt DateTime @updatedAt
+
+  deletedAt DateTime?
+
+  sessionPlayers SessionPlayer[]
+
+  sessionCourts SessionCourt[]
+
+  rounds Round[]
+
+  @@index([status])
+}
+
+model SessionPlayer {
+  id String @id @default(cuid())
+
+  playerId String
+
+  sessionId String
+
+  joinedAt DateTime @default(now())
+
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@unique([playerId, sessionId])
+}
+
+model Court {
+  id String @id @default(cuid())
+
+  name String
+
+  courtNumber Int
+
+  status CourtStatus @default(AVAILABLE)
+
+  isActive Boolean @default(true)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  sessionCourts SessionCourt[]
+
+  matches Match[]
+
+  @@unique([courtNumber])
+  @@index([status])
+  @@index([isActive])
+}
+
+model Round {
+  id String @id @default(cuid())
+
+  sessionId String
+
+  roundNumber Int
+
+  status RoundStatus @default(PENDING)
+
+  startedAt DateTime?
+
+  completedAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  updatedAt DateTime @updatedAt
+
+  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  matches Match[]
+
+  @@unique([sessionId, roundNumber])
+  @@index([sessionId])
+}
+
+model Match {
+  id String @id @default(cuid())
+
+  roundId String
+  courtId String
+
+  teamAScore Int?
+  teamBScore Int?
+  winner     Int?
+
+  startedAt DateTime?
+  endedAt   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  round Round @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  court Court @relation(fields: [courtId], references: [id], onDelete: Cascade)
+
+  players MatchPlayer[]
+}
+
+model MatchPlayer {
+  id String @id @default(cuid())
+
+  playerId String
+  matchId  String
+
+  team     Int
+  position Int
+
+  createdAt DateTime @default(now())
+
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  match  Match  @relation(fields: [matchId], references: [id], onDelete: Cascade)
+
+  @@unique([matchId, playerId])
+}
+
+model SessionCourt {
+  id String @id @default(cuid())
+
+  sessionId String
+  courtId   String
+
+  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  court   Court   @relation(fields: [courtId], references: [id], onDelete: Cascade)
+
+  assignedAt DateTime @default(now())
+
+  @@unique([sessionId, courtId])
+  @@index([sessionId])
+  @@index([courtId])
+}
