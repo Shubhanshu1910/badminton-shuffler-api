@@ -13,22 +13,26 @@ export class GameRepository {
     private readonly prisma: PrismaService,
   ) {}
 
-  async findById(id: string): Promise<Match | null> {
-    return this.prisma.match.findUnique({
-      where: {
-        id,
-      },
-      include: {
-        players: {
-          include: {
-            player: true,
-          },
+async findById(id: string) {
+  return this.prisma.match.findUnique({
+    where: {
+      id,
+    },
+    include: {
+      round: {
+        include: {
+          session: true,
         },
-        court: true,
-        round: true,
       },
-    });
-  }
+      court: true,
+      players: {
+        include: {
+          player: true,
+        },
+      },
+    },
+  });
+}
 
   async startMatch(id: string): Promise<Match> {
     return this.prisma.match.update({

@@ -16,13 +16,17 @@ import { SessionMapper } from '../mappers/session.mapper';
 import { SessionRepository } from '../repositories/session.repository';
 import { SessionStatus } from '../../../common/enums/session.enum';
 import { RoundService } from '../../round/services/round.service';
+import { SocketService } from '../../socket/services/socket.service';
 
 @Injectable()
 export class SessionService {
   constructor(
     private readonly repository: SessionRepository,
     private readonly roundService: RoundService,
-  ) {}
+    private readonly socketService: SocketService,
+  ) {
+     console.log('SessionGateway Created');
+  }
 
   async create(dto: CreateSessionDto) {
     const session =
@@ -128,7 +132,16 @@ export class SessionService {
 
   
   await this.repository.startSession(id);
-  return this.roundService.generate(id);
+  const round =
+    await this.roundService.generate(id);
+
+this.socketService.emitToSession(
+    id,
+    'session-started',
+    round,
+);
+
+return round;
 
 }
 async end(id: string) {

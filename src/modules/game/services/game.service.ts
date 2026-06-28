@@ -9,11 +9,15 @@ import { GameRepository } from '../repositories/game.repository';
 import { StartGameDto } from '../dto/start-game.dto';
 import { UpdateScoreDto } from '../dto/update-score.dto';
 import { FinishGameDto } from '../dto/finish-game.dto';
+import { SocketService } from '../../socket/services/socket.service';
+import { RoundService } from '../../round/services/round.service';
 
 @Injectable()
 export class GameService {
   constructor(
     private readonly repository: GameRepository,
+    private readonly roundService: RoundService,
+    private readonly socketService: SocketService,
   ) {}
 
   async start(dto: StartGameDto) {
@@ -28,8 +32,15 @@ export class GameService {
         'Match has already started.',
       );
     }
+    const startedMatch = await this.repository.startMatch(dto.matchId);
 
-    return this.repository.startMatch(dto.matchId);
+    this.socketService.emitToSession(
+      match.round.sessionId,
+      'match-started',
+      startedMatch,
+    );
+
+    return startedMatch;
   }
 
   async updateScore(
@@ -48,11 +59,19 @@ export class GameService {
       );
     }
 
-    return this.repository.updateScore(
-      id,
-      dto.teamAScore,
-      dto.teamBScore,
-    );
+    const updatedMatch = await this.repository.updateScore(
+  id,
+  dto.teamAScore,
+  dto.teamBScore,
+);
+
+this.socketService.emitToSession(
+  match.round.sessionId,
+  'score-updated',
+  updatedMatch,
+);
+
+return updatedMatch;
   }
 
   async finish(
@@ -86,9 +105,24 @@ export class GameService {
         completed.roundId,
       );
 
-    return {
-      match: completed,
-      roundCompleted,
-    };
+      if (roundCompleted) {
+  const nextRound =
+    await this.roundService.generate(
+      match.round.sessionId,
+    );
+
+  this.socketService.emitToSession(
+    match.round.sessionId,
+    'next-round',
+    nextRound,
+  );
+
+  return {
+    match: completed,
+    roundCompleted,
+    nextRound,
+  };
+}
+
   }
 }

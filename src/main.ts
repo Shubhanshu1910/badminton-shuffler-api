@@ -5,9 +5,6 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
 
 import { AppModule } from './app.module';
-import { PrismaService } from '../database/prisma.service';
-import { ResponseInterceptor } from './common/interceptors/response.interceptor';
-import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule, {
@@ -49,15 +46,7 @@ async function bootstrap(): Promise<void> {
   SwaggerModule.setup('docs', app, document);
 
   const port = configService.get<number>('port', 3000);
-  // const prismaService = app.get(PrismaService);
-  // await prismaService.enableShutdownHooks(app);
-  app.useGlobalInterceptors(
-  new ResponseInterceptor(),
-);
 
-app.useGlobalFilters(
-  new GlobalExceptionFilter(),
-);
   await app.listen(port);
 
   console.log(`🚀 Server running at http://localhost:${port}/api`);

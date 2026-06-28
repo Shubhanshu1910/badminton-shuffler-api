@@ -28,4 +28,8 @@ export const Messages = {
     UPDATED: 'Session updated successfully.',
     DELETED: 'Session deleted successfully.',
   },
+
+  HEALTH: {
+    CHECK: 'Health check successful.',
+  },
 } as const;
