@@ -15,6 +15,7 @@ import { GameModule } from './modules/game/game.module';
 import { ShuffleModule } from './modules/shuffle/shuffle.module';
 import { RoundModule } from './modules/round/round.module';
 import { SocketModule } from './modules/socket/socket.module';
+import { AuthModule } from './modules/auth/auth.module';
 
 @Module({
   imports: [
@@ -43,6 +44,8 @@ import { SocketModule } from './modules/socket/socket.module';
     GameModule,
 
     SocketModule,
+
+    AuthModule,
   ],
   providers: [
     {
