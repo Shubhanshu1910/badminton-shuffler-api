@@ -8,6 +8,10 @@ RUN npm install
 
 COPY . .
 
+# Generate Prisma Client
+RUN npx prisma generate
+
+# Build NestJS
 RUN npm run build
 
 EXPOSE 3000
