@@ -16,4 +16,6 @@ export enum SocketEvents {
   MATCH_FINISHED = 'match-finished',
 
   NEXT_ROUND = 'next-round',
+
+  COURT_REMATCH = 'court-rematch',
 }

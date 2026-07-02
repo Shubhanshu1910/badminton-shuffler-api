@@ -3,7 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { MatchStatus } from '@prisma/client';
+import { MatchStatus, RotationType } from '@prisma/client';
 
 import { GameRepository } from '../repositories/game.repository';
 import { StartGameDto } from '../dto/start-game.dto';
@@ -28,10 +28,9 @@ export class GameService {
     }
 
     if (match.status !== MatchStatus.PENDING) {
-      throw new BadRequestException(
-        'Match has already started.',
-      );
+      throw new BadRequestException('Match has already started.');
     }
+
     const startedMatch = await this.repository.startMatch(dto.matchId);
 
     this.socketService.emitToSession(
@@ -43,10 +42,7 @@ export class GameService {
     return startedMatch;
   }
 
-  async updateScore(
-    id: string,
-    dto: UpdateScoreDto,
-  ) {
+  async updateScore(id: string, dto: UpdateScoreDto) {
     const match = await this.repository.findById(id);
 
     if (!match) {
@@ -54,30 +50,25 @@ export class GameService {
     }
 
     if (match.status !== MatchStatus.PLAYING) {
-      throw new BadRequestException(
-        'Match is not in progress.',
-      );
+      throw new BadRequestException('Match is not in progress.');
     }
 
     const updatedMatch = await this.repository.updateScore(
-  id,
-  dto.teamAScore,
-  dto.teamBScore,
-);
+      id,
+      dto.teamAScore,
+      dto.teamBScore,
+    );
 
-this.socketService.emitToSession(
-  match.round.sessionId,
-  'score-updated',
-  updatedMatch,
-);
+    this.socketService.emitToSession(
+      match.round.sessionId,
+      'score-updated',
+      updatedMatch,
+    );
 
-return updatedMatch;
+    return updatedMatch;
   }
 
-  async finish(
-    id: string,
-    dto: FinishGameDto,
-  ) {
+  async finish(id: string, dto: FinishGameDto) {
     const match = await this.repository.findById(id);
 
     if (!match) {
@@ -85,44 +76,96 @@ return updatedMatch;
     }
 
     if (match.status !== MatchStatus.PLAYING) {
-      throw new BadRequestException(
-        'Match is not currently playing.',
-      );
+      throw new BadRequestException('Match is not currently playing.');
     }
 
-    const completed = await this.repository.finishMatch(
-      id,
-      dto.winner,
-    );
+    const sessionId = match.round.sessionId;
+    const rotationType =
+      match.round.session?.rotationType ?? RotationType.ROUND_ROBIN;
 
-    await this.repository.updatePlayerStatistics(
-      id,
-      dto.winner,
+    const completed = await this.repository.finishMatch(id, dto.winner);
+
+    await this.repository.updatePlayerStatistics(id, dto.winner);
+
+    await this.repository.incrementWaitAfterMatch(
+      sessionId,
+      completed.roundId,
     );
 
     const roundCompleted =
-      await this.repository.areAllMatchesCompleted(
+      await this.repository.areAllMatchesCompleted(completed.roundId);
+
+    const currentRound =
+      await this.roundService.getCurrentRound(sessionId);
+
+    const finishPayload = {
+      match: completed,
+      roundCompleted,
+      waitingPlayers: currentRound.waitingPlayers,
+      waitingCount: currentRound.waitingCount,
+    };
+
+    this.socketService.emitToSession(
+      sessionId,
+      'match-finished',
+      finishPayload,
+    );
+
+    if (rotationType === RotationType.FCFS) {
+      const rematch = await this.roundService.rematchCourt(
+        sessionId,
+        match.courtId,
         completed.roundId,
       );
 
-      if (roundCompleted) {
-  const nextRound =
-    await this.roundService.generate(
-      match.round.sessionId,
-    );
+      if (rematch.courtRematch) {
+        await this.repository.startMatch(rematch.courtRematch.matchId);
 
-  this.socketService.emitToSession(
-    match.round.sessionId,
-    'next-round',
-    nextRound,
-  );
+        this.socketService.emitToSession(
+          sessionId,
+          'court-rematch',
+          rematch,
+        );
+      } else {
+        this.socketService.emitToSession(
+          sessionId,
+          'court-rematch',
+          rematch,
+        );
+      }
 
-  return {
-    match: completed,
-    roundCompleted,
-    nextRound,
-  };
-}
+      const refreshed =
+        await this.roundService.getCurrentRound(sessionId);
 
+      return {
+        ...finishPayload,
+        courtRematch: rematch.courtRematch,
+        waitingPlayers: refreshed.waitingPlayers,
+        waitingCount: refreshed.waitingCount,
+        rotationType,
+      };
+    }
+
+    if (roundCompleted) {
+      const nextRound =
+        await this.roundService.generate(sessionId);
+
+      this.socketService.emitToSession(
+        sessionId,
+        'next-round',
+        nextRound,
+      );
+
+      return {
+        ...finishPayload,
+        nextRound,
+        rotationType,
+      };
+    }
+
+    return {
+      ...finishPayload,
+      rotationType,
+    };
   }
 }

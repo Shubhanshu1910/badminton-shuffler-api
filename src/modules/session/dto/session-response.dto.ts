@@ -26,6 +26,9 @@ export class SessionResponseDto {
   @ApiProperty()
   currentRound: number;
 
+  @ApiProperty({ enum: ['ROUND_ROBIN', 'FCFS'] })
+  rotationType: string;
+
   @ApiProperty()
   createdAt: Date;
 }

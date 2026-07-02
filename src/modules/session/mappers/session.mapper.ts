@@ -14,6 +14,7 @@ export class SessionMapper {
       maxPlayers: session.maxPlayers,
       status: session.status,
       currentRound: session.currentRound,
+      rotationType: session.rotationType,
       createdAt: session.createdAt,
     };
   }

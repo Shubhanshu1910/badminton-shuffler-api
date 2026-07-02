@@ -30,10 +30,11 @@ export class ShuffleService {
 
     const matches = courtGroups.map(
       (courtPlayers, index) => {
-        const teams =
-          TeamUtil.createTeams(
-            courtPlayers,
-          );
+        const teams = TeamUtil.createTeams(
+          courtPlayers,
+          index,
+          roundNumber,
+        );
 
           HistoryUtil.updatePartnerHistory(
   teams.teamA[0],

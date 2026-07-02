@@ -117,19 +117,58 @@ async findById(id: string) {
     );
   }
 
-  async areAllMatchesCompleted(
-    roundId: string,
-  ): Promise<boolean> {
-    const count =
-      await this.prisma.match.count({
-        where: {
-          roundId,
-          status: {
-            not: MatchStatus.COMPLETED,
-          },
+  async areAllMatchesCompleted(roundId: string): Promise<boolean> {
+    const count = await this.prisma.match.count({
+      where: {
+        roundId,
+        status: {
+          not: MatchStatus.COMPLETED,
         },
-      });
+      },
+    });
 
     return count === 0;
+  }
+
+  async incrementWaitAfterMatch(
+    sessionId: string,
+    roundId: string,
+  ): Promise<void> {
+    const activeMatches = await this.prisma.match.findMany({
+      where: {
+        roundId,
+        status: {
+          in: [MatchStatus.PENDING, MatchStatus.PLAYING],
+        },
+      },
+      include: {
+        players: true,
+      },
+    });
+
+    const activePlayerIds = new Set<string>();
+    for (const m of activeMatches) {
+      for (const p of m.players) {
+        activePlayerIds.add(p.playerId);
+      }
+    }
+
+    if (activePlayerIds.size === 0) {
+      return;
+    }
+
+    await this.prisma.player.updateMany({
+      where: {
+        sessionPlayers: {
+          some: { sessionId },
+        },
+        id: {
+          notIn: Array.from(activePlayerIds),
+        },
+      },
+      data: {
+        gamesWaited: { increment: 1 },
+      },
+    });
   }
 }

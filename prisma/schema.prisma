@@ -7,6 +7,160 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model User {
+  id            String         @id @default(cuid())
+  fullName      String
+  email         String         @unique
+  passwordHash  String
+  role          UserRole       @default(USER)
+  isActive      Boolean        @default(true)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  refreshTokens RefreshToken[]
+
+  @@index([email])
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  expiresAt DateTime
+  userId    String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Player {
+  id             String          @id @default(cuid())
+  name           String
+  isActive       Boolean         @default(true)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  deletedAt      DateTime?
+  gamesLost      Int             @default(0)
+  gamesPlayed    Int             @default(0)
+  gamesWaited    Int             @default(0)
+  gamesWon       Int             @default(0)
+  phone          String?
+  skillLevel     Int             @default(3)
+  matchPlayers   MatchPlayer[]
+  sessionPlayers SessionPlayer[]
+
+  @@index([name])
+  @@index([isActive])
+}
+
+model Session {
+  id             String          @id @default(cuid())
+  title          String
+  status         SessionStatus   @default(DRAFT)
+  totalCourts    Int
+  currentRound   Int             @default(0)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  deletedAt      DateTime?
+  description    String?
+  endedAt        DateTime?
+  maxPlayers     Int
+  startedAt      DateTime?
+  rotationType   RotationType    @default(ROUND_ROBIN)
+  rounds         Round[]
+  sessionCourts  SessionCourt[]
+  sessionPlayers SessionPlayer[]
+
+  @@index([status])
+}
+
+model SessionPlayer {
+  id        String   @id @default(cuid())
+  playerId  String
+  sessionId String
+  joinedAt  DateTime @default(now())
+  player    Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  session   Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@unique([playerId, sessionId])
+}
+
+model Court {
+  id            String         @id @default(cuid())
+  courtNumber   Int            @unique
+  createdAt     DateTime       @default(now())
+  deletedAt     DateTime?
+  isActive      Boolean        @default(true)
+  name          String
+  status        CourtStatus    @default(AVAILABLE)
+  updatedAt     DateTime       @updatedAt
+  matches       Match[]
+  sessionCourts SessionCourt[]
+
+  @@index([status])
+  @@index([isActive])
+}
+
+model Round {
+  id          String      @id @default(cuid())
+  roundNumber Int
+  sessionId   String
+  completedAt DateTime?
+  createdAt   DateTime    @default(now())
+  startedAt   DateTime?
+  status      RoundStatus @default(PENDING)
+  updatedAt   DateTime    @updatedAt
+  matches     Match[]
+  session     Session     @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, roundNumber])
+  @@index([sessionId])
+}
+
+model Match {
+  id         String        @id @default(cuid())
+  courtId    String
+  roundId    String
+  createdAt  DateTime      @default(now())
+  endedAt    DateTime?
+  startedAt  DateTime?
+  status     MatchStatus   @default(PENDING)
+  teamAScore Int           @default(0)
+  teamBScore Int           @default(0)
+  updatedAt  DateTime      @updatedAt
+  winner     Int?
+  court      Court         @relation(fields: [courtId], references: [id], onDelete: Cascade)
+  round      Round         @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  players    MatchPlayer[]
+
+  @@index([status])
+}
+
+model MatchPlayer {
+  id        String   @id @default(cuid())
+  matchId   String
+  playerId  String
+  team      Int
+  createdAt DateTime @default(now())
+  position  Int
+  match     Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  player    Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@unique([matchId, playerId])
+}
+
+model SessionCourt {
+  id         String   @id @default(cuid())
+  sessionId  String
+  courtId    String
+  assignedAt DateTime @default(now())
+  court      Court    @relation(fields: [courtId], references: [id], onDelete: Cascade)
+  session    Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, courtId])
+  @@index([sessionId])
+  @@index([courtId])
+}
+
 enum UserRole {
   ADMIN
   USER
@@ -47,223 +201,7 @@ enum MatchStatus {
   CANCELLED
 }
 
-model User {
-  id           String   @id @default(cuid())
-  fullName     String
-  email        String   @unique
-  passwordHash String
-  role         UserRole @default(USER)
-  isActive     Boolean  @default(true)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  refreshTokens RefreshToken[]
-
-  @@index([email])
-}
-
-model RefreshToken {
-  id        String   @id @default(cuid())
-  token     String   @unique
-  expiresAt DateTime
-
-  userId String
-  user   User   @relation(fields:[userId], references:[id], onDelete:Cascade)
-
-  createdAt DateTime @default(now())
-
-  @@index([userId])
-}
-
-model Player {
-  id String @id @default(cuid())
-
-  name       String
-  phone      String?
-  skillLevel Int     @default(3)
-  isActive   Boolean @default(true)
-
-  gamesPlayed Int @default(0)
-  gamesWon    Int @default(0)
-  gamesLost   Int @default(0)
-  gamesWaited Int @default(0)
-
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
-
-  sessionPlayers SessionPlayer[]
-  matchPlayers   MatchPlayer[]
-
-  @@index([name])
-  @@index([isActive])
-}
-
-model Session {
-  id String @id @default(cuid())
-
-  title String
-
-  description String?
-
-  status SessionStatus @default(DRAFT)
-
-  totalCourts Int
-
-  maxPlayers Int
-
-  currentRound Int @default(0)
-
-  startedAt DateTime?
-
-  endedAt DateTime?
-
-  createdAt DateTime @default(now())
-
-  updatedAt DateTime @updatedAt
-
-  deletedAt DateTime?
-
-  sessionPlayers SessionPlayer[]
-
-  sessionCourts SessionCourt[]
-
-  rounds Round[]
-
-  @@index([status])
-}
-
-model SessionPlayer {
-  id String @id @default(cuid())
-
-  playerId String
-
-  sessionId String
-
-  joinedAt DateTime @default(now())
-
-  player Player @relation(fields:[playerId], references:[id], onDelete:Cascade)
-
-  session Session @relation(fields:[sessionId], references:[id], onDelete:Cascade)
-
-  @@unique([playerId, sessionId])
-}
-
-model Court {
-  id String @id @default(cuid())
-
-  name String
-
-  courtNumber Int
-
-  status CourtStatus @default(AVAILABLE)
-
-  isActive Boolean @default(true)
-
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
-
-  sessionCourts SessionCourt[]
-
-  matches Match[]
-
-  @@unique([courtNumber])
-  @@index([status])
-  @@index([isActive])
-}
-
-model Round {
-  id          String       @id @default(cuid())
-
-  sessionId   String
-
-  roundNumber Int
-
-  status      RoundStatus  @default(PENDING)
-
-  createdAt   DateTime     @default(now())
-
-  startedAt   DateTime?
-
-  completedAt DateTime?
-
-  updatedAt   DateTime     @updatedAt
-
-  session      Session @relation(fields:[sessionId], references:[id], onDelete:Cascade)
-
-  matches      Match[]
-
-  @@unique([sessionId, roundNumber])
-
-  @@index([sessionId])
-}
-
-model Match {
-
-  id String @id @default(cuid())
-
-  roundId String
-
-  courtId String
-
-  status MatchStatus @default(PENDING)
-
-  teamAScore Int @default(0)
-
-  teamBScore Int @default(0)
-
-  winner Int?
-
-  startedAt DateTime?
-
-  endedAt DateTime?
-
-  createdAt DateTime @default(now())
-
-  updatedAt DateTime @updatedAt
-
-  round Round @relation(fields:[roundId], references:[id], onDelete:Cascade)
-  court Court @relation(fields:[courtId], references:[id], onDelete:Cascade)
-
-  players MatchPlayer[]
-
-  @@index([status])
-}
-
-model MatchPlayer {
-
-  id String @id @default(cuid())
-
-  playerId String
-
-  matchId String
-
-  team Int
-
-  position Int
-
-  createdAt DateTime @default(now())
-
-  player Player @relation(fields:[playerId], references:[id], onDelete:Cascade)
-  match  Match  @relation(fields:[matchId], references:[id], onDelete:Cascade)
-
-  @@unique([matchId, playerId])
-}
-
-model SessionCourt {
-  id String @id @default(cuid())
-
-  sessionId String
-  courtId   String
-
-  session Session @relation(fields:[sessionId], references:[id], onDelete:Cascade)
-  court   Court   @relation(fields:[courtId], references:[id], onDelete:Cascade)
-
-  assignedAt DateTime @default(now())
-
-  @@unique([sessionId, courtId])
-  @@index([sessionId])
-  @@index([courtId])
+enum RotationType {
+  ROUND_ROBIN
+  FCFS
 }
