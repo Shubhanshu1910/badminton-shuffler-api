@@ -27,6 +27,29 @@ export class RoundRepository {
     });
   }
 
+  async getCurrentRound(sessionId: string) {
+  return this.prisma.round.findFirst({
+    where: {
+      sessionId,
+    },
+    orderBy: {
+      roundNumber: 'desc',
+    },
+    include: {
+      matches: {
+        include: {
+          court: true,
+          players: {
+            include: {
+              player: true,
+            },
+          },
+        },
+      },
+    },
+  });
+}
+
   async createRound(
     sessionId: string,
     roundNumber: number,
